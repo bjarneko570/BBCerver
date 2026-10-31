@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server-Statistiken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115; --bg2:#161a21; --card:#1b2029; --card2:#222834; --line:#2b3240;
+    --text:#e8ebf1; --muted:#8b93a5; --accent:#5fd068; --accent2:#3fa74a;
+    --gold:#f4c542; --silver:#c9d1dc; --bronze:#d98b4a; --danger:#ef5b5b;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,sans-serif}
+  a{color:inherit}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 20px}
+  header{background:linear-gradient(180deg,#141922,#0f1115);border-bottom:1px solid var(--line)}
+  .hero{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;padding:28px 0 22px}
+  h1{font-family:"Pixelify Sans",Inter,sans-serif;font-weight:700;font-size:34px;margin:0;letter-spacing:.5px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--muted);margin-top:4px;font-size:13px}
+  .hero-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:13px;white-space:nowrap}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .dot.on{background:var(--accent);box-shadow:0 0 0 3px rgba(95,208,104,.18)}
+  .dot.off{background:var(--danger)}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--text);padding:7px 14px;border-radius:999px}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.5;cursor:default}
+  .err{background:#3a1f22;border:1px solid #6b2c31;color:#ffc9c9;padding:10px 14px;border-radius:var(--radius);margin:16px 0 0}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;padding-bottom:24px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .tile .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tile .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+  section{padding:26px 0 6px}
+  h2{font-family:"Pixelify Sans",Inter,sans-serif;font-size:22px;margin:0 0 14px;font-weight:500}
+  .online-list{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;cursor:pointer}
+  .chip img{width:24px;height:24px;border-radius:5px;image-rendering:pixelated}
+  .muted{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+  .board{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column}
+  .board-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--card2)}
+  .board-h .sq{width:12px;height:12px;border-radius:3px}
+  .board-h b{flex:1;font-weight:600}
+  .board-h .more{font-size:12px;color:var(--muted);cursor:pointer;background:none;border:none;padding:0}
+  .board-h .more:hover{color:var(--accent)}
+  .row{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03)}
+  .row:hover{background:rgba(255,255,255,.035)}
+  .rank{width:22px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;font-weight:600}
+  .rank.r1{color:var(--gold)}.rank.r2{color:var(--silver)}.rank.r3{color:var(--bronze)}
+  .row img{width:26px;height:26px;border-radius:5px;image-rendering:pixelated;background:#000}
+  .row .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .val{font-variant-numeric:tabular-nums;font-weight:600}
+  .bar{height:3px;background:var(--line);margin:0 14px 0 72px;border-radius:2px;overflow:hidden;margin-top:-4px;margin-bottom:4px}
+  .bar i{display:block;height:100%}
+  .empty{padding:16px 14px;color:var(--muted)}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  input[type=search]{font:inherit;background:var(--card);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:8px;min-width:240px;outline:none}
+  input[type=search]:focus{border-color:var(--accent)}
+  .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:900px}
+  th,td{padding:9px 12px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  th{position:sticky;top:0;background:var(--card2);font-weight:600;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;border-bottom:1px solid var(--line)}
+  th:hover{color:var(--text)} th.sorted{color:var(--accent)}
+  th:first-child,td:first-child{text-align:left}
+  tbody tr{border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer}
+  tbody tr:hover{background:rgba(255,255,255,.035)}
+  td .pl{display:flex;align-items:center;gap:9px}
+  td .pl img{width:22px;height:22px;border-radius:4px;image-rendering:pixelated}
+  footer{color:var(--muted);font-size:12px;padding:30px 0 40px;text-align:center}
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;z-index:10}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--line);border-radius:14px;max-width:880px;width:100%;overflow:hidden}
+  .m-head{display:flex;gap:18px;align-items:center;padding:20px 22px;background:var(--card2);border-bottom:1px solid var(--line)}
+  .m-head img{width:72px;height:72px;border-radius:10px;image-rendering:pixelated}
+  .m-head h3{margin:0;font-family:"Pixelify Sans",Inter,sans-serif;font-size:28px;font-weight:700}
+  .m-head .close{margin-left:auto;align-self:flex-start}
+  .m-body{padding:20px 22px}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+  .mgrid .tile{padding:10px 12px}
+  .mgrid .tile .v{font-size:19px}
+  .mgrid .rk{font-size:11px;color:var(--muted)}
+  .mgrid .rk.top{color:var(--gold)}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .list h4{margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .list div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .list span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+  @media (max-width:600px){h1{font-size:26px}.hero{padding:20px 0 16px}}
+  /* ---------- Farbenfrohes Theme ---------- */
+  body{
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(124,77,255,.35), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(0,200,255,.25), transparent 60%),
+      radial-gradient(900px 700px at 50% 120%, rgba(255,64,129,.18), transparent 60%),
+      #120f24;
+    background-attachment:fixed;
+  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.06;
+    background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);background-size:32px 32px}
+  header{background:transparent;border-bottom:none}
+  h1{font-size:44px}
+  h1 .brand{background:linear-gradient(90deg,#ffd54f,#ff6e40,#ff4081,#7c4dff,#40c4ff,#69f0ae);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}
+  h1 span:not(.brand){display:inline-block;font-size:.55em;vertical-align:middle;color:#120f24;background:#69f0ae;padding:2px 10px 4px;border-radius:8px;transform:rotate(-3deg);margin-left:6px;box-shadow:0 3px 0 #2e9e63}
+  .sub{color:#b9b3d9}
+  .pill{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);backdrop-filter:blur(6px)}
+  #refresh{background:linear-gradient(135deg,#7c4dff,#ff4081);border:none;font-weight:600;box-shadow:0 4px 0 #5a2fc2}
+  #refresh:hover{filter:brightness(1.1)} #refresh:active{transform:translateY(2px);box-shadow:0 2px 0 #5a2fc2}
+  .summary .tile{border:none;color:#fff;position:relative;overflow:hidden;box-shadow:0 5px 0 rgba(0,0,0,.3)}
+  .summary .tile .l{color:rgba(255,255,255,.85);font-weight:600}
+  .summary .tile .v{font-size:28px;text-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .summary .tile .ico{position:absolute;right:10px;top:8px;font-size:34px;opacity:.9;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+  h2{font-size:26px;display:flex;align-items:center;gap:10px}
+  h2::before{content:"";width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#ffd54f,#ff4081);box-shadow:0 2px 0 rgba(0,0,0,.3)}
+  .chip{background:rgba(105,240,174,.12);border-color:rgba(105,240,174,.45)}
+  .chip::after{content:"";width:8px;height:8px;border-radius:50%;background:#69f0ae;margin-left:2px;box-shadow:0 0 8px #69f0ae}
+  .board{background:rgba(26,22,48,.85);border:2px solid var(--c);box-shadow:0 6px 0 var(--c2),0 10px 30px rgba(0,0,0,.35);border-radius:14px}
+  .board-h{background:linear-gradient(135deg,var(--c),var(--c2));border-bottom:none;padding:13px 14px}
+  .board-h b{color:#fff;font-weight:700;text-shadow:0 2px 0 rgba(0,0,0,.25);font-size:15px}
+  .board-h .em{font-size:22px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+  .board-h .more{color:#fff;background:rgba(0,0,0,.22);padding:3px 9px;border-radius:999px}
+  .board-h .more:hover{color:#fff;background:rgba(0,0,0,.4)}
+  .row.p1{background:linear-gradient(90deg,rgba(255,213,79,.28),transparent 80%)}
+  .row.p2{background:linear-gradient(90deg,rgba(207,216,220,.22),transparent 80%)}
+  .row.p3{background:linear-gradient(90deg,rgba(255,138,80,.24),transparent 80%)}
+  .rank.medal{font-size:17px;width:22px;text-align:center}
+  .row .val{color:var(--c)}
+  .row.p1 .n{font-weight:700}
+  .bar{background:rgba(255,255,255,.07);height:4px}
+  .bar i{background:linear-gradient(90deg,var(--c),var(--c2))!important}
+  input[type=search]{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18)}
+  .table-wrap{background:rgba(26,22,48,.85);border:2px solid #7c4dff;box-shadow:0 6px 0 #4a2a9e}
+  th{background:linear-gradient(135deg,#7c4dff,#536dfe);color:#fff}
+  th.sorted{color:#ffd54f}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.03)}
+  .modal{background:#1a1630;border:2px solid #7c4dff;box-shadow:0 8px 0 #4a2a9e}
+  .m-head{background:linear-gradient(135deg,#7c4dff,#ff4081)}
+  .m-head .muted{color:rgba(255,255,255,.85)}
+  .mgrid .tile{border:none;border-left:5px solid var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 22%,transparent),rgba(255,255,255,.03))}
+  .mgrid .tile .v{color:#fff}
+  .mgrid .rk.top{color:#ffd54f;font-weight:700}
+  .list h4{color:#ffd54f}
+  /* ---------- Passwort-Seite ---------- */
+  #gate{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;
+    background:radial-gradient(900px 500px at 20% 10%, rgba(124,77,255,.45), transparent 60%),radial-gradient(800px 500px at 90% 90%, rgba(255,64,129,.3), transparent 60%),#120f24}
+  #gate.open{display:flex}
+  .gate-box{width:100%;max-width:400px;background:#1a1630;border:2px solid #7c4dff;box-shadow:0 8px 0 #4a2a9e,0 20px 60px rgba(0,0,0,.5);border-radius:16px;padding:30px 28px;text-align:center}
+  .gate-box h1{font-size:40px;margin-bottom:6px}
+  .gate-box p{color:#b9b3d9;margin:0 0 22px}
+  .gate-box input[type=password]{width:100%;font:inherit;font-size:16px;padding:12px 14px;border-radius:10px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;outline:none;text-align:center}
+  .gate-box input[type=password]:focus{border-color:#69f0ae}
+  .gate-box label{display:flex;gap:8px;align-items:center;justify-content:center;color:#b9b3d9;font-size:13px;margin:14px 0 18px;cursor:pointer}
+  .gate-box button{width:100%;padding:12px;font-size:16px;font-weight:700;border:none;border-radius:10px;background:linear-gradient(135deg,#7c4dff,#ff4081);box-shadow:0 4px 0 #5a2fc2}
+  .gate-box button:active{transform:translateY(2px);box-shadow:0 2px 0 #5a2fc2}
+  .gate-err{color:#ff8a80;min-height:20px;margin-top:12px;font-size:13px}
+  .gate-lock{font-size:46px;margin-bottom:6px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}
+  .gate-box.shake{animation:shake .35s}
+  @keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+</style>
+</head>
+<body>
+<div id="gate"><form class="gate-box" id="gate-form" autocomplete="on">
+  <div class="gate-lock">🔒</div>
+  <h1><span class="brand" id="gate-title">BBCerver</span></h1>
+  <p>Die Stats sind passwortgeschützt.</p>
+  <input type="text" name="username" value="bbcerver" autocomplete="username" hidden>
+  <input type="password" id="gate-pw" placeholder="Passwort eingeben" autocomplete="current-password" required>
+  <label><input type="checkbox" id="gate-remember" checked> Auf diesem Gerät angemeldet bleiben</label>
+  <button type="submit" id="gate-btn">Stats anzeigen</button>
+  <div class="gate-err" id="gate-err"></div>
+</form></div>
+<header>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1 id="title">Server <span>Stats</span></h1>
+        <div class="sub" id="sub">Lade Daten …</div>
+      </div>
+      <div class="hero-right">
+        <div class="pill" id="status"><span class="dot"></span><span>Status wird geprüft …</span></div>
+        <div class="pill" id="sync"><span class="muted">Noch nicht synchronisiert</span></div>
+        <button id="refresh" title="Jetzt neu vom Server laden">Aktualisieren</button>
+      </div>
+    </div>
+    <div id="error"></div>
+    <div class="summary" id="summary"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="online-sec" style="display:none">
+    <h2>Gerade online</h2>
+    <div class="online-list" id="online"></div>
+  </section>
+
+  <section>
+    <h2>Ranglisten</h2>
+    <div class="grid" id="boards"></div>
+  </section>
+
+  <section>
+    <h2>Alle Spieler</h2>
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Spieler suchen …">
+      <span class="muted" id="count"></span>
+    </div>
+    <div class="table-wrap"><table id="table"></table></div>
+  </section>
+</main>
+
+<footer>Daten aus den Statistik-Dateien des Servers · aktualisiert automatisch</footer>
+
+<div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+
+<script>
+const METRICS = [
+  {key:'playtime',      label:'Meiste Spielzeit',     col:'Spielzeit', icon:'⏰', color:'#69f0ae', color2:'#00b0ff', fmt:'hours'},
+  {key:'deaths',        label:'Meiste Tode',          col:'Tode',      icon:'💀', color:'#ff5252', color2:'#d500f9'},
+  {key:'mob_kills',     label:'Mob-Kills',            col:'Mob-Kills', icon:'🧟', color:'#b388ff', color2:'#651fff'},
+  {key:'player_kills',  label:'Spieler-Kills',        col:'PvP-Kills', icon:'⚔️', color:'#ff9100', color2:'#ff1744'},
+  {key:'distance',      label:'Zurückgelegte Strecke',col:'Strecke',   icon:'🧭', color:'#40c4ff', color2:'#2962ff', fmt:'km'},
+  {key:'blocks_mined',  label:'Abgebaute Blöcke',     col:'Blöcke',    icon:'⛏️', color:'#ffab40', color2:'#8d6e63'},
+  {key:'diamonds',      label:'Diamanterze abgebaut', col:'Diamanten', icon:'💎', color:'#64ffda', color2:'#00b8d4'},
+  {key:'ancient_debris',label:'Antiker Schutt',       col:'Schutt',    icon:'🔥', color:'#ff6e40', color2:'#6d2c1f'},
+  {key:'crafted',       label:'Gecraftete Items',     col:'Gecraftet', icon:'🛠️', color:'#ffd740', color2:'#ff6d00'},
+  {key:'elytra',        label:'Elytra-Flug',          col:'Elytra',    icon:'🪽', color:'#8c9eff', color2:'#aa00ff', fmt:'km'},
+  {key:'jumps',         label:'Sprünge',              col:'Sprünge',   icon:'🐇', color:'#b2ff59', color2:'#00c853'},
+  {key:'fish',          label:'Gefangene Fische',     col:'Fische',    icon:'🎣', color:'#18ffff', color2:'#2979ff'},
+  {key:'trades',        label:'Dorfbewohner-Handel',  col:'Handel',    icon:'💰', color:'#76ff03', color2:'#1b5e20'},
+  {key:'damage_dealt',  label:'Schaden ausgeteilt',   col:'Schaden',   icon:'💥', color:'#ff4081', color2:'#ff6e40'},
+];
+const nf  = new Intl.NumberFormat('de-DE');
+const nf1 = new Intl.NumberFormat('de-DE',{maximumFractionDigits:1});
+const STEVE = "data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" shape-rendering="crispEdges"><rect width="8" height="8" fill="#6b4a2f"/><rect y="2" width="8" height="6" fill="#c69c6d"/><rect x="1" y="4" width="2" height="1" fill="#fff"/><rect x="5" y="4" width="2" height="1" fill="#fff"/><rect x="2" y="4" width="1" height="1" fill="#3a2a7a"/><rect x="5" y="4" width="1" height="1" fill="#3a2a7a"/><rect x="3" y="6" width="2" height="1" fill="#7a4a3a"/></svg>');
+
+let DATA = null, STATUS = null, expanded = {}, sortKey = 'playtime', sortDir = -1;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pretty = id => id.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+function fmt(m, v){
+  if (m.fmt === 'hours'){
+    if (v < 1) return Math.round(v*60) + ' min';
+    return nf1.format(v) + ' h';
+  }
+  if (m.fmt === 'km') return nf1.format(v) + ' km';
+  return nf.format(v);
+}
+function avatar(p, size=32){
+  const id = p.name_known === false ? p.uuid : (p.name || p.uuid);
+  return `<img loading="lazy" src="https://mc-heads.net/avatar/${encodeURIComponent(id)}/${size}" onerror="this.onerror=null;this.src='${STEVE}'" alt="">`;
+}
+function ago(ts){
+  if (!ts) return '–';
+  const s = Date.now()/1000 - ts;
+  if (s < 60) return 'gerade eben';
+  if (s < 3600) return `vor ${Math.floor(s/60)} Min.`;
+  if (s < 86400) return `vor ${Math.floor(s/3600)} Std.`;
+  const d = Math.floor(s/86400);
+  return d === 1 ? 'vor 1 Tag' : `vor ${d} Tagen`;
+}
+
+const STATIC = !!window.CRAFTSTATS_STATIC;
+let PW = null, KEYCACHE = null;
+const b64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+const store = {
+  get(){ try { return localStorage.getItem('bbc_pw'); } catch(e){ return null; } },
+  set(v){ try { localStorage.setItem('bbc_pw', v); } catch(e){} },
+  del(){ try { localStorage.removeItem('bbc_pw'); } catch(e){} },
+};
+async function decryptData(pw){
+  const enc = await (await fetch('data.enc.json?t=' + Date.now(), {cache:'no-store'})).json();
+  if (!KEYCACHE || KEYCACHE.salt !== enc.salt || KEYCACHE.pw !== pw){
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({name:'PBKDF2', salt:b64(enc.salt), iterations:enc.iter, hash:'SHA-256'},
+      base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+    KEYCACHE = {salt:enc.salt, pw, key};
+  }
+  const plain = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64(enc.iv)}, KEYCACHE.key, b64(enc.data));
+  const text = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return JSON.parse(text);
+}
+async function load(){
+  if (STATIC){
+    if (!PW) return;
+    try { DATA = await decryptData(PW); STATUS = DATA.status || null; render(); }
+    catch(e){ if (e && e.name === 'OperationError'){ store.del(); PW = null; showGate('Das Passwort wurde geändert. Bitte neu eingeben.'); } }
+    return;
+  }
+  try{
+    const r = await fetch('/api/data'); DATA = await r.json();
+    render();
+  }catch(e){ document.getElementById('sub').textContent = 'Keine Verbindung zum lokalen Server.'; }
+}
+async function loadStatus(){
+  if (STATIC){ renderStatus(); return; }
+  try{ STATUS = await (await fetch('/api/status')).json(); }catch(e){ STATUS = null; }
+  renderStatus();
+}
+function showGate(msg){
+  document.getElementById('gate').classList.add('open');
+  document.getElementById('gate-err').textContent = msg || '';
+  setTimeout(() => document.getElementById('gate-pw').focus(), 50);
+}
+async function unlock(pw, remember, silent){
+  const btn = document.getElementById('gate-btn');
+  btn.disabled = true; btn.textContent = 'Prüfe …';
+  try{
+    DATA = await decryptData(pw); STATUS = DATA.status || null; PW = pw;
+    if (remember) store.set(pw); else store.del();
+    document.getElementById('gate').classList.remove('open');
+    render();
+  }catch(e){
+    if (silent){ store.del(); showGate(''); }
+    else {
+      const box = document.querySelector('.gate-box'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+      document.getElementById('gate-err').textContent = (e && e.name === 'OperationError') ? 'Falsches Passwort.' : 'Daten konnten nicht geladen werden. Versuch es gleich nochmal.';
+      document.getElementById('gate-pw').select();
+    }
+  }finally{ btn.disabled = false; btn.textContent = 'Stats anzeigen'; }
+}
+
+function renderStatus(){
+  const el = document.getElementById('status'), sec = document.getElementById('online-sec');
+  if (!STATUS || !STATUS.configured){ el.style.display='none'; sec.style.display='none'; return; }
+  el.style.display='';
+  if (STATUS.online){
+    el.innerHTML = `<span class="dot on"></span><span>Online · ${STATUS.players_online}/${STATUS.players_max} Spieler</span>`;
+    el.title = [STATUS.motd, STATUS.version, STATIC ? 'Stand: ' + ago(DATA?.status_checked) : STATUS.latency_ms + ' ms'].filter(Boolean).join(' · ');
+    const sample = STATUS.sample || [];
+    sec.style.display = '';
+    document.getElementById('online').innerHTML = sample.length
+      ? sample.map(s => {
+          const p = DATA?.players.find(x => x.uuid === (s.uuid||'').toLowerCase()) || {name:s.name, uuid:s.uuid};
+          return `<span class="chip" data-uuid="${esc(p.uuid)}">${avatar(p,24)}${esc(s.name)}</span>`;
+        }).join('')
+      : `<span class="muted">${STATUS.players_online ? STATUS.players_online + ' Spieler online (Namen werden vom Server nicht übermittelt)' : 'Gerade ist niemand online.'}</span>`;
+  } else {
+    el.innerHTML = `<span class="dot off"></span><span>Server offline</span>`;
+    el.title = STATUS.error || '';
+    sec.style.display = 'none';
+  }
+}
+
+function render(){
+  const d = DATA, players = d.players;
+  document.title = (d.server_name || 'Server') + ' – Statistiken';
+  document.getElementById('title').innerHTML = '<span class="brand">' + esc(d.server_name || 'Server') + '</span><span>Stats</span>';
+  document.getElementById('sub').textContent = `${players.length} Spieler mit Statistiken` + (d.stats_path ? ` · Quelle: ${d.stats_path}` : '') + (STATIC ? ' · aktualisiert sich alle 15 Minuten' : '');
+  if (STATIC){
+    document.getElementById('refresh').style.display = 'none';
+    document.getElementById('sync').innerHTML = d.last_sync ? `Stand: ${ago(d.last_sync)}` : '';
+  } else document.getElementById('sync').innerHTML = d.syncing
+    ? '<span class="muted">Synchronisiere …</span>'
+    : (d.last_sync ? `Aktualisiert ${ago(d.last_sync)}` : '<span class="muted">Noch nicht synchronisiert</span>');
+  document.getElementById('error').innerHTML = d.sync_error
+    ? `<div class="err"><b>Sync-Fehler:</b> ${esc(d.sync_error)}</div>` : '';
+
+  const sum = k => players.reduce((a,p) => a + (p.metrics[k]||0), 0);
+  const tiles = [
+    ['Spieler', nf.format(players.length), '🧑‍🤝‍🧑', '#7c4dff', '#536dfe'],
+    ['Gesamtspielzeit', nf.format(Math.round(sum('playtime'))) + ' h', '⏰', '#00c853', '#00b0ff'],
+    ['Tode gesamt', nf.format(sum('deaths')), '💀', '#ff1744', '#d500f9'],
+    ['Blöcke abgebaut', nf.format(sum('blocks_mined')), '⛏️', '#ff9100', '#ff3d00'],
+    ['Strecke gesamt', nf.format(Math.round(sum('distance'))) + ' km', '🧭', '#00b8d4', '#2962ff'],
+  ];
+  document.getElementById('summary').innerHTML = tiles.map(([l,v,i,c1,c2]) =>
+    `<div class="tile" style="background:linear-gradient(135deg,${c1},${c2})"><span class="ico">${i}</span><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+
+  renderBoards(); renderTable(); renderStatus();
+}
+
+function ranked(key){
+  return DATA.players.filter(p => p.metrics[key] > 0).sort((a,b) => b.metrics[key] - a.metrics[key]);
+}
+
+function renderBoards(){
+  document.getElementById('boards').innerHTML = METRICS.map(m => {
+    const list = ranked(m.key), show = expanded[m.key] ? list : list.slice(0,10);
+    const max = list[0]?.metrics[m.key] || 1;
+    const rows = show.map((p,i) => `
+      <div class="row ${i<3 ? 'p'+(i+1) : ''}" data-uuid="${p.uuid}">
+        ${i<3 ? `<span class="rank medal">${['🥇','🥈','🥉'][i]}</span>` : `<span class="rank">${i+1}</span>`}${avatar(p,26)}
+        <span class="n">${esc(p.name)}</span><span class="val">${fmt(m, p.metrics[m.key])}</span>
+      </div>
+      <div class="bar"><i style="width:${(p.metrics[m.key]/max*100).toFixed(1)}%;background:${m.color}"></i></div>`).join('');
+    const more = list.length > 10 ? `<button class="more" data-expand="${m.key}">${expanded[m.key] ? 'Weniger' : 'Alle ' + list.length}</button>` : '';
+    return `<div class="board" style="--c:${m.color};--c2:${m.color2}"><div class="board-h"><span class="em">${m.icon}</span><b>${m.label}</b>${more}</div>
+      ${rows || '<div class="empty">Noch keine Daten</div>'}</div>`;
+  }).join('');
+}
+
+function renderTable(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  let rows = DATA.players.filter(p => !q || p.name.toLowerCase().includes(q));
+  rows.sort((a,b) => {
+    if (sortKey === 'name') return sortDir * a.name.localeCompare(b.name);
+    if (sortKey === 'last_saved') return sortDir * (a.last_saved - b.last_saved);
+    return sortDir * (a.metrics[sortKey] - b.metrics[sortKey]);
+  });
+  const cols = [{key:'name', col:'Spieler'}, ...METRICS, {key:'last_saved', col:'Zuletzt aktiv'}];
+  const th = cols.map(c => `<th data-sort="${c.key}" class="${c.key===sortKey?'sorted':''}">${c.icon ? c.icon+' ' : ''}${c.col}${c.key===sortKey ? (sortDir<0?' ▼':' ▲') : ''}</th>`).join('');
+  const body = rows.map(p => `<tr data-uuid="${p.uuid}">
+      <td><span class="pl">${avatar(p,22)}${esc(p.name)}</span></td>
+      ${METRICS.map(m => `<td>${fmt(m, p.metrics[m.key])}</td>`).join('')}
+      <td class="muted">${ago(p.last_saved)}</td></tr>`).join('');
+  document.getElementById('table').innerHTML = `<thead><tr>${th}</tr></thead><tbody>${body}</tbody>`;
+  document.getElementById('count').textContent = q ? `${rows.length} von ${DATA.players.length}` : '';
+}
+
+function openPlayer(uuid){
+  const p = DATA.players.find(x => x.uuid === uuid);
+  if (!p) return;
+  const tiles = METRICS.map(m => {
+    const list = ranked(m.key), r = list.indexOf(p) + 1;
+    return `<div class="tile" style="--c:${m.color}"><div class="l">${m.icon} ${m.col}</div><div class="v">${fmt(m, p.metrics[m.key])}</div>
+      <div class="rk ${r && r<=3 ? 'top':''}">${r ? `Platz ${r} von ${list.length}` : '–'}</div></div>`;
+  }).join('');
+  const MOVE = {walk:'Gehen',sprint:'Sprinten',crouch:'Schleichen',swim:'Schwimmen',fall:'Fallen',climb:'Klettern',
+    fly:'Fliegen',walk_on_water:'Auf Wasser',walk_under_water:'Unter Wasser',minecart:'Lore',boat:'Boot',pig:'Schwein',
+    horse:'Pferd',aviate:'Elytra',strider:'Schreiter',happy_ghast:'Glücklicher Ghast'};
+  const list = (title, items, unit='') => `<div class="list"><h4>${title}</h4>${
+    items.length ? items.map(([k,v]) => `<div><span>${esc(unit==='km' ? (MOVE[k] || pretty(k)) : pretty(k))}</span><span>${unit==='km' ? nf1.format(v)+' km' : nf.format(v)}</span></div>`).join('')
+                 : '<div><span class="muted">Keine Daten</span><span></span></div>'}</div>`;
+  const d = p.details;
+  document.getElementById('modal').innerHTML = `
+    <div class="m-head">${avatar(p,72)}<div><h3>${esc(p.name)}</h3>
+      <div class="muted">Zuletzt aktiv ${ago(p.last_saved)} · ${fmt(METRICS[0], p.metrics.playtime)} gespielt</div></div>
+      <button class="close" id="close">Schließen</button></div>
+    <div class="m-body">
+      <div class="mgrid">${tiles}</div>
+      <div class="cols">
+        ${list('Meist abgebaut', d.mined)}
+        ${list('Getötete Mobs', d.killed)}
+        ${list('Gestorben durch', d.killed_by)}
+        ${list('Fortbewegung', d.movement.slice(0,8), 'km')}
+        ${list('Meist gecraftet', d.crafted)}
+      </div>
+    </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+  document.getElementById('close').onclick = closeModal;
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+
+document.addEventListener('click', e => {
+  const exp = e.target.closest('[data-expand]');
+  if (exp){ expanded[exp.dataset.expand] = !expanded[exp.dataset.expand]; renderBoards(); return; }
+  const th = e.target.closest('th[data-sort]');
+  if (th){ const k = th.dataset.sort; sortDir = (k === sortKey) ? -sortDir : (k==='name' ? 1 : -1); sortKey = k; renderTable(); return; }
+  if (e.target.id === 'modal-bg'){ closeModal(); return; }
+  const u = e.target.closest('[data-uuid]');
+  if (u && !e.target.closest('.modal')) openPlayer(u.dataset.uuid);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('refresh').addEventListener('click', async ev => {
+  const b = ev.target; b.disabled = true; b.textContent = 'Lädt …';
+  await fetch('/api/sync', {method:'POST'}).catch(()=>{});
+  for (let i = 0; i < 30; i++){
+    await new Promise(r => setTimeout(r, 1000));
+    await load();
+    if (!DATA.syncing) break;
+  }
+  b.disabled = false; b.textContent = 'Aktualisieren';
+});
+
+document.getElementById('gate-form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  unlock(document.getElementById('gate-pw').value, document.getElementById('gate-remember').checked, false);
+});
+if (STATIC){
+  const saved = store.get();
+  if (saved) unlock(saved, true, true); else showGate('');
+  setInterval(load, 5 * 60000);
+} else {
+  load().then(loadStatus);
+  setInterval(load, 60000);
+  setInterval(loadStatus, 30000);
+}
+</script>
+</body>
+</html>

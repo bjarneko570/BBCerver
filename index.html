@@ -176,6 +176,17 @@
   .cat-more{display:block;width:100%;border:none;border-top:1px solid rgba(255,255,255,.08);border-radius:0;background:rgba(255,255,255,.04);padding:8px;font-size:12px;font-weight:600;color:#fff}
   .cat-more:hover{background:color-mix(in srgb,var(--c) 30%,transparent)}
   .modal{max-width:1000px}
+  /* Rangliste fuer einen einzelnen Wert */
+  .stat-row{cursor:pointer;border-radius:6px;margin:0 -6px;padding-left:6px!important;padding-right:6px!important}
+  .stat-row:hover{background:color-mix(in srgb,var(--c) 18%,transparent)}
+  .stat-row:hover span:first-child{text-decoration:underline;text-underline-offset:3px}
+  .stat-head .stat-icon{font-size:52px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.3))}
+  .stat-head h3{margin:2px 0}
+  .stat-head .muted{color:rgba(255,255,255,.85)}
+  .back{margin-bottom:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);font-weight:600}
+  .stat-board{box-shadow:none}
+  .stat-board .row{padding:9px 14px}
+  .row.me{outline:2px solid #69f0ae;outline-offset:-2px;border-radius:6px}
 </style>
 </head>
 <body>
@@ -566,13 +577,55 @@ function renderCats(p){
       ? `<button class="cat-more" data-cat="${c.key}">${open ? 'Weniger anzeigen' : `Alle ${rows.length} anzeigen`}</button>` : '';
     return `<div class="cat" style="--c:${c.color}">
       <div class="cat-h"><span>${c.icon}</span><b>${c.title}</b>${total !== null ? `<span class="cat-sum">${nf.format(total)} gesamt</span>` : ''}</div>
-      <div class="cat-list">${shown.length ? shown.map(r => `<div><span>${esc(r.label)}</span><span>${r.val}</span></div>`).join('')
+      <div class="cat-list">${shown.length ? shown.map(r => `<div class="stat-row" data-cat="${c.key}" data-k="${esc(r.k)}" title="Rangliste für ${esc(r.label)} anzeigen"><span>${esc(r.label)}</span><span>${r.val}</span></div>`).join('')
         : '<div><span class="muted">Noch nichts</span><span></span></div>'}</div>${more}</div>`;
   }).join('');
   document.getElementById('cats').innerHTML = html || '<div class="muted">Nichts gefunden.</div>';
   document.querySelectorAll('.cat-more').forEach(b => b.onclick = ev => {
     ev.stopPropagation(); MODAL.open[b.dataset.cat] = !MODAL.open[b.dataset.cat]; renderCats(p);
   });
+  document.querySelectorAll('.stat-row').forEach(r => r.onclick = ev => {
+    ev.stopPropagation(); openStat(r.dataset.cat, r.dataset.k, p.uuid);
+  });
+}
+
+// Rangliste aller Spieler fuer einen einzelnen Wert (z. B. "Herzen verloren")
+function statLabel(cat, k){
+  const c = CATS.find(x => x.key === cat);
+  return cat === 'custom' ? customLabel(k) : (c && c.mob ? (MOB_DE[k] || pretty(k)) : pretty(k));
+}
+function statValue(cat, k, v){ return cat === 'custom' ? customValue(k, v) : nf.format(v); }
+function openStat(cat, k, fromUuid){
+  const c = CATS.find(x => x.key === cat) || CATS[0];
+  const label = statLabel(cat, k);
+  const list = DATA.players.map(p => ({p, v: ((p.stats || {})[cat] || {})[k] || 0}))
+    .filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+  const max = list[0] ? list[0].v : 1;
+  const from = DATA.players.find(x => x.uuid === fromUuid);
+  const sum = list.reduce((a, x) => a + x.v, 0);
+  const rows = list.map((x, i) => `
+    <div class="row ${i<3 ? 'p'+(i+1) : ''} ${x.p.uuid === fromUuid ? 'me' : ''}" data-open="${x.p.uuid}">
+      ${i<3 ? `<span class="rank medal">${['🥇','🥈','🥉'][i]}</span>` : `<span class="rank">${i+1}</span>`}${avatar(x.p,26)}
+      <span class="n">${esc(x.p.name)}</span><span class="val">${statValue(cat, k, x.v)}</span>
+    </div>
+    <div class="bar"><i style="width:${(x.v/max*100).toFixed(1)}%"></i></div>`).join('');
+  const second = cat === 'custom' ? '#ff4081' : '#ffffff';
+  document.getElementById('modal').innerHTML = `
+    <div class="m-head stat-head" style="background:linear-gradient(135deg,${c.color},${second === '#ffffff' ? c.color + 'aa' : second})">
+      <span class="stat-icon">${c.icon}</span>
+      <div><div class="muted">${cat === 'custom' ? 'Rangliste' : 'Rangliste · ' + c.title}</div><h3>${esc(label)}</h3>
+        <div class="muted">${list.length} von ${DATA.players.length} Spielern${cat === 'custom' || k.endsWith('_one_cm') ? '' : ' · zusammen ' + nf.format(sum)}</div></div>
+      <button class="close" id="close">Schließen</button></div>
+    <div class="m-body">
+      ${from ? `<button class="back" id="back">← Zurück zu ${esc(from.name)}</button>` : ''}
+      <div class="board stat-board" style="--c:${c.color};--c2:${second === '#ffffff' ? c.color : second}">
+        ${rows || '<div class="empty">Noch niemand</div>'}
+      </div>
+    </div>`;
+  document.getElementById('close').onclick = closeModal;
+  if (from) document.getElementById('back').onclick = ev => { ev.stopPropagation(); openPlayer(from.uuid); };
+  document.querySelectorAll('[data-open]').forEach(r => r.onclick = ev => { ev.stopPropagation(); MODAL.uuid = null; openPlayer(r.dataset.open); });
+  document.getElementById('modal-bg').scrollTop = 0;
 }
 
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }

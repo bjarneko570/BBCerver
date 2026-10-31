@@ -53,6 +53,10 @@ def main():
     payload["status"] = server.get_status()
     payload["status_checked"] = time.time()
     payload["mode"] = "online"
+    mc = server.CFG.get("minecraft", {})
+    if mc.get("host"):
+        # Ohne MC_PORT: nur der Hostname, damit SRV-Eintraege (eigener Port) automatisch gefunden werden
+        payload["status_target"] = {"host": mc["host"], "port": int(os.environ["MC_PORT"]) if os.environ.get("MC_PORT", "").strip() else None}
     payload.pop("stats_path", None)
 
     plain = gzip.compress(json.dumps(payload, separators=(",", ":")).encode("utf-8"))

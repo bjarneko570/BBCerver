@@ -286,7 +286,7 @@ async function decryptData(pw){
 async function load(){
   if (STATIC){
     if (!PW) return;
-    try { DATA = await decryptData(PW); STATUS = DATA.status || null; render(); }
+    try { DATA = await decryptData(PW); if (!STATUS || !STATUS.live) STATUS = DATA.status || null; render(); }
     catch(e){ if (e && e.name === 'OperationError'){ store.del(); PW = null; showGate('Das Passwort wurde geändert. Bitte neu eingeben.'); } }
     return;
   }
@@ -295,8 +295,25 @@ async function load(){
     render();
   }catch(e){ document.getElementById('sub').textContent = 'Keine Verbindung zum lokalen Server.'; }
 }
+async function liveStatus(){
+  // Online-Version: wer gerade spielt, live ueber mcstatus.io abfragen (Fallback: Stand vom letzten Update)
+  const t = DATA && DATA.status_target;
+  if (!t) return;
+  try{
+    const r = await fetch(`https://api.mcstatus.io/v2/status/java/${encodeURIComponent(t.host)}${t.port ? ':' + t.port : ''}`, {cache:'no-store'});
+    if (!r.ok) return;
+    const j = await r.json();
+    STATUS = {
+      configured: true, live: true, online: !!j.online,
+      players_online: j.players?.online || 0, players_max: j.players?.max || 0,
+      version: j.version?.name_clean, motd: j.motd?.clean,
+      sample: (j.players?.list || []).map(p => ({name: p.name_clean || p.name_raw, uuid: p.uuid})),
+    };
+    renderStatus();
+  }catch(e){ /* Dienst nicht erreichbar: letzter Stand bleibt stehen */ }
+}
 async function loadStatus(){
-  if (STATIC){ renderStatus(); return; }
+  if (STATIC){ renderStatus(); liveStatus(); return; }
   try{ STATUS = await (await fetch('/api/status')).json(); }catch(e){ STATUS = null; }
   renderStatus();
 }
@@ -312,7 +329,7 @@ async function unlock(pw, remember, silent){
     DATA = await decryptData(pw); STATUS = DATA.status || null; PW = pw;
     if (remember) store.set(pw); else store.del();
     document.getElementById('gate').classList.remove('open');
-    render();
+    render(); liveStatus();
   }catch(e){
     if (silent){ store.del(); showGate(''); }
     else {
@@ -329,7 +346,7 @@ function renderStatus(){
   el.style.display='';
   if (STATUS.online){
     el.innerHTML = `<span class="dot on"></span><span>Online · ${STATUS.players_online}/${STATUS.players_max} Spieler</span>`;
-    el.title = [STATUS.motd, STATUS.version, STATIC ? 'Stand: ' + ago(DATA?.status_checked) : STATUS.latency_ms + ' ms'].filter(Boolean).join(' · ');
+    el.title = [STATUS.motd, STATUS.version, STATIC ? (STATUS.live ? 'live' : 'Stand: ' + ago(DATA?.status_checked)) : STATUS.latency_ms + ' ms'].filter(Boolean).join(' · ');
     const sample = STATUS.sample || [];
     sec.style.display = '';
     document.getElementById('online').innerHTML = sample.length
@@ -475,6 +492,7 @@ if (STATIC){
   const saved = store.get();
   if (saved) unlock(saved, true, true); else showGate('');
   setInterval(load, 5 * 60000);
+  setInterval(liveStatus, 60000);
 } else {
   load().then(loadStatus);
   setInterval(load, 60000);

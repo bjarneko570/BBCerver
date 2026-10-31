@@ -1,0 +1,72 @@
+name: Stats aktualisieren
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # alle 15 Minuten (GitHub startet manchmal etwas spaeter)
+  workflow_dispatch:          # manuell starten: Actions -> Stats aktualisieren -> Run workflow
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Python vorbereiten
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet cryptography
+
+      - name: Stats holen und verschluesseln
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_TLS: ${{ secrets.FTP_TLS }}
+          FTP_BASE_PATH: ${{ secrets.FTP_BASE_PATH }}
+          WORLD_NAME: ${{ secrets.WORLD_NAME }}
+          MC_HOST: ${{ secrets.MC_HOST }}
+          MC_PORT: ${{ secrets.MC_PORT }}
+          SERVER_NAME: ${{ vars.SERVER_NAME }}
+          HIDDEN_PLAYERS: ${{ vars.HIDDEN_PLAYERS }}
+        run: .venv/bin/python build.py
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+          include-hidden-files: true
+
+      # GitHub pausiert geplante Ablaeufe nach 60 Tagen ohne Aktivitaet im Projekt.
+      # Dieser Schritt macht alle 50 Tage einen leeren Commit, damit das nicht passiert.
+      - name: Projekt aktiv halten
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          if [ $((now - last)) -gt $((50 * 86400)) ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Projekt aktiv halten"
+            git push
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

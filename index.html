@@ -160,6 +160,22 @@
   .gate-lock{font-size:46px;margin-bottom:6px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}
   .gate-box.shake{animation:shake .35s}
   @keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+  /* Detailansicht: alle Stats */
+  .m-search{margin:4px 0 16px}
+  .m-search input{width:100%;font:inherit;padding:10px 14px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;outline:none}
+  .m-search input:focus{border-color:#69f0ae}
+  .cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;align-items:start}
+  .cat{background:rgba(255,255,255,.03);border:2px solid color-mix(in srgb,var(--c) 55%,transparent);border-radius:12px;overflow:hidden}
+  .cat-h{display:flex;align-items:center;gap:8px;padding:9px 12px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 45%,transparent),transparent)}
+  .cat-h b{flex:1}
+  .cat-sum{font-size:11px;color:rgba(255,255,255,.75)}
+  .cat-list{padding:4px 12px 6px}
+  .cat-list div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
+  .cat-list div:last-child{border-bottom:none}
+  .cat-list span:last-child{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;color:var(--c)}
+  .cat-more{display:block;width:100%;border:none;border-top:1px solid rgba(255,255,255,.08);border-radius:0;background:rgba(255,255,255,.04);padding:8px;font-size:12px;font-weight:600;color:#fff}
+  .cat-more:hover{background:color-mix(in srgb,var(--c) 30%,transparent)}
+  .modal{max-width:1000px}
 </style>
 </head>
 <body>
@@ -428,38 +444,137 @@ function renderTable(){
   document.getElementById('count').textContent = q ? `${rows.length} von ${DATA.players.length}` : '';
 }
 
+const CUSTOM_DE = {
+  play_time:'Spielzeit', total_world_time:'Zeit in der Welt', time_since_death:'Zeit seit dem letzten Tod',
+  time_since_rest:'Zeit seit dem letzten Schlafen', sneak_time:'Zeit geschlichen',
+  deaths:'Tode', damage_taken:'Herzen verloren', damage_dealt:'Schaden ausgeteilt',
+  damage_absorbed:'Schaden absorbiert', damage_resisted:'Schaden widerstanden',
+  damage_blocked_by_shield:'Mit Schild geblockt', damage_dealt_absorbed:'Ausgeteilt (absorbiert)',
+  damage_dealt_resisted:'Ausgeteilt (widerstanden)',
+  mob_kills:'Mobs getötet', player_kills:'Spieler getötet', animals_bred:'Tiere gezüchtet',
+  jump:'Sprünge', drop:'Items fallen gelassen', leave_game:'Spiel verlassen',
+  fish_caught:'Fische gefangen', traded_with_villager:'Mit Dorfbewohnern gehandelt',
+  talked_to_villager:'Mit Dorfbewohnern gesprochen', sleep_in_bed:'Im Bett geschlafen',
+  enchant_item:'Items verzaubert', eat_cake_slice:'Kuchenstücke gegessen',
+  open_chest:'Truhen geöffnet', open_barrel:'Fässer geöffnet', open_enderchest:'Endertruhen geöffnet',
+  open_shulker_box:'Shulkerkisten geöffnet', trigger_trapped_chest:'Redstonetruhen ausgelöst',
+  inspect_dispenser:'Werfer durchsucht', inspect_dropper:'Spender durchsucht', inspect_hopper:'Trichter durchsucht',
+  interact_with_crafting_table:'Werkbank benutzt', interact_with_furnace:'Ofen benutzt',
+  interact_with_blast_furnace:'Schmelzofen benutzt', interact_with_smoker:'Räucherofen benutzt',
+  interact_with_anvil:'Amboss benutzt', interact_with_grindstone:'Schleifstein benutzt',
+  interact_with_smithing_table:'Schmiedetisch benutzt', interact_with_stonecutter:'Steinsäge benutzt',
+  interact_with_loom:'Webstuhl benutzt', interact_with_cartography_table:'Kartentisch benutzt',
+  interact_with_brewingstand:'Braustand benutzt', interact_with_beacon:'Leuchtfeuer benutzt',
+  interact_with_campfire:'Lagerfeuer benutzt', interact_with_lectern:'Lesepult benutzt',
+  fill_cauldron:'Kessel gefüllt', use_cauldron:'Wasser aus Kessel genommen',
+  clean_armor:'Rüstung gewaschen', clean_banner:'Banner gewaschen', clean_shulker_box:'Shulkerkisten gewaschen',
+  pot_flower:'Pflanzen eingetopft', play_noteblock:'Notenblöcke gespielt', tune_noteblock:'Notenblöcke gestimmt',
+  play_record:'Schallplatten abgespielt', bell_ring:'Glocken geläutet', target_hit:'Zielblock getroffen',
+  raid_trigger:'Überfälle ausgelöst', raid_win:'Überfälle gewonnen',
+  walk_one_cm:'Gelaufen', sprint_one_cm:'Gesprintet', crouch_one_cm:'Geschlichen', swim_one_cm:'Geschwommen',
+  fall_one_cm:'Gefallen', climb_one_cm:'Geklettert', fly_one_cm:'Geflogen', aviate_one_cm:'Mit Elytra geflogen',
+  walk_on_water_one_cm:'Auf Wasser gelaufen', walk_under_water_one_cm:'Unter Wasser gelaufen',
+  boat_one_cm:'Boot gefahren', minecart_one_cm:'Lore gefahren', horse_one_cm:'Pferd geritten',
+  pig_one_cm:'Schwein geritten', strider_one_cm:'Schreiter geritten', happy_ghast_one_cm:'Glücklichen Ghast geritten',
+};
+const CUSTOM_ORDER = ['play_time','deaths','damage_taken','damage_dealt','mob_kills','player_kills','jump',
+  'walk_one_cm','sprint_one_cm','aviate_one_cm','swim_one_cm','fall_one_cm','time_since_death','sleep_in_bed',
+  'open_chest','traded_with_villager','fish_caught','animals_bred','enchant_item'];
+const MOB_DE = {zombie:'Zombie',skeleton:'Skelett',creeper:'Creeper',spider:'Spinne',cave_spider:'Höhlenspinne',
+  enderman:'Enderman',witch:'Hexe',slime:'Schleim',magma_cube:'Magmawürfel',blaze:'Lohe',ghast:'Ghast',
+  zombified_piglin:'Zombifizierter Piglin',piglin:'Piglin',piglin_brute:'Piglin-Barbar',hoglin:'Hoglin',zoglin:'Zoglin',
+  wither_skeleton:'Witherskelett',wither:'Wither',ender_dragon:'Enderdrache',drowned:'Ertrunkener',husk:'Wüstenzombie',
+  stray:'Eiswanderer',phantom:'Phantom',pillager:'Plünderer',vindicator:'Diener',evoker:'Magier',ravager:'Verwüster',
+  vex:'Plagegeist',guardian:'Wächter',elder_guardian:'Großer Wächter',shulker:'Shulker',silverfish:'Silberfischchen',
+  endermite:'Endermite',warden:'Wärter',breeze:'Böe',bogged:'Sumpfskelett',creaking:'Knarz',
+  cow:'Kuh',pig:'Schwein',sheep:'Schaf',chicken:'Huhn',rabbit:'Kaninchen',horse:'Pferd',villager:'Dorfbewohner',
+  iron_golem:'Eisengolem',wolf:'Wolf',cat:'Katze',fox:'Fuchs',bee:'Biene',squid:'Tintenfisch',glow_squid:'Leuchttintenfisch',
+  cod:'Kabeljau',salmon:'Lachs',tropical_fish:'Tropenfisch',pufferfish:'Kugelfisch',turtle:'Schildkröte',goat:'Ziege',
+  llama:'Lama',polar_bear:'Eisbär',panda:'Panda',dolphin:'Delfin',bat:'Fledermaus',mooshroom:'Mooshroom',
+  zombie_villager:'Zombiedorfbewohner',player:'Spieler'};
+const CATS = [
+  {key:'custom',    title:'Allgemein',        icon:'📊', color:'#7c4dff', show:12},
+  {key:'mined',     title:'Abgebaut',         icon:'⛏️', color:'#ffab40', show:8},
+  {key:'killed',    title:'Getötete Mobs',    icon:'⚔️', color:'#ff5252', show:8, mob:true},
+  {key:'killed_by', title:'Gestorben durch',  icon:'💀', color:'#d500f9', show:8, mob:true},
+  {key:'crafted',   title:'Gecraftet',        icon:'🛠️', color:'#ffd740', show:8},
+  {key:'used',      title:'Benutzt / platziert', icon:'🧱', color:'#40c4ff', show:8},
+  {key:'picked_up', title:'Aufgehoben',       icon:'🎒', color:'#69f0ae', show:8},
+  {key:'dropped',   title:'Fallen gelassen',  icon:'🗑️', color:'#ff9100', show:8},
+  {key:'broken',    title:'Kaputt gegangen',  icon:'🔨', color:'#8d6e63', show:8},
+];
+const TIME_KEYS = new Set(['play_time','total_world_time','time_since_death','time_since_rest','sneak_time']);
+function fmtDuration(sec){
+  const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60);
+  if (h) return `${nf.format(h)} h ${m} min`;
+  if (m) return `${m} min`;
+  return `${Math.round(sec)} s`;
+}
+function customLabel(k){ return CUSTOM_DE[k] || pretty(k.replace(/_one_cm$/, '')); }
+function customValue(k, v){
+  if (k.endsWith('_one_cm')) return v >= 100000 ? nf1.format(v/100000) + ' km' : nf.format(Math.round(v/100)) + ' m';
+  if (TIME_KEYS.has(k)) return fmtDuration(v/20);
+  if (k.startsWith('damage_')) return nf1.format(v/20) + ' ❤';
+  return nf.format(v);
+}
+let MODAL = {uuid:null, open:{}, q:''};
+
 function openPlayer(uuid){
   const p = DATA.players.find(x => x.uuid === uuid);
   if (!p) return;
+  if (MODAL.uuid !== uuid) MODAL = {uuid, open:{}, q:''};
   const tiles = METRICS.map(m => {
     const list = ranked(m.key), r = list.indexOf(p) + 1;
     return `<div class="tile" style="--c:${m.color}"><div class="l">${m.icon} ${m.col}</div><div class="v">${fmt(m, p.metrics[m.key])}</div>
       <div class="rk ${r && r<=3 ? 'top':''}">${r ? `Platz ${r} von ${list.length}` : '–'}</div></div>`;
   }).join('');
-  const MOVE = {walk:'Gehen',sprint:'Sprinten',crouch:'Schleichen',swim:'Schwimmen',fall:'Fallen',climb:'Klettern',
-    fly:'Fliegen',walk_on_water:'Auf Wasser',walk_under_water:'Unter Wasser',minecart:'Lore',boat:'Boot',pig:'Schwein',
-    horse:'Pferd',aviate:'Elytra',strider:'Schreiter',happy_ghast:'Glücklicher Ghast'};
-  const list = (title, items, unit='') => `<div class="list"><h4>${title}</h4>${
-    items.length ? items.map(([k,v]) => `<div><span>${esc(unit==='km' ? (MOVE[k] || pretty(k)) : pretty(k))}</span><span>${unit==='km' ? nf1.format(v)+' km' : nf.format(v)}</span></div>`).join('')
-                 : '<div><span class="muted">Keine Daten</span><span></span></div>'}</div>`;
-  const d = p.details;
   document.getElementById('modal').innerHTML = `
     <div class="m-head">${avatar(p,72)}<div><h3>${esc(p.name)}</h3>
       <div class="muted">Zuletzt aktiv ${ago(p.last_saved)} · ${fmt(METRICS[0], p.metrics.playtime)} gespielt</div></div>
       <button class="close" id="close">Schließen</button></div>
     <div class="m-body">
       <div class="mgrid">${tiles}</div>
-      <div class="cols">
-        ${list('Meist abgebaut', d.mined)}
-        ${list('Getötete Mobs', d.killed)}
-        ${list('Gestorben durch', d.killed_by)}
-        ${list('Fortbewegung', d.movement.slice(0,8), 'km')}
-        ${list('Meist gecraftet', d.crafted)}
-      </div>
+      <div class="m-search"><input type="search" id="m-search" placeholder="In allen Stats suchen … (z. B. Herzen, Truhen, diamond)" value="${esc(MODAL.q)}"></div>
+      <div class="cats" id="cats"></div>
     </div>`;
+  renderCats(p);
   document.getElementById('modal-bg').classList.add('open');
   document.getElementById('close').onclick = closeModal;
+  const si = document.getElementById('m-search');
+  si.oninput = () => { MODAL.q = si.value; renderCats(p); };
 }
+
+function renderCats(p){
+  const st = p.stats || {}, q = MODAL.q.trim().toLowerCase();
+  const html = CATS.map(c => {
+    const raw = st[c.key] || {};
+    let rows = Object.entries(raw).map(([k, v]) => {
+      const label = c.key === 'custom' ? customLabel(k) : (c.mob ? (MOB_DE[k] || pretty(k)) : pretty(k));
+      const val = c.key === 'custom' ? customValue(k, v) : nf.format(v);
+      return {k, v, label, val};
+    });
+    if (c.key === 'custom'){
+      const pos = k => { const i = CUSTOM_ORDER.indexOf(k); return i < 0 ? 999 : i; };
+      rows.sort((a, b) => pos(a.k) - pos(b.k) || a.label.localeCompare(b.label, 'de'));
+    } else rows.sort((a, b) => b.v - a.v);
+    const total = c.key === 'custom' ? null : rows.reduce((s, r) => s + r.v, 0);
+    if (q) rows = rows.filter(r => r.label.toLowerCase().includes(q) || r.k.includes(q.replace(/ /g, '_')));
+    if (!rows.length && q) return '';
+    const open = MODAL.open[c.key] || q;
+    const shown = open ? rows : rows.slice(0, c.show);
+    const more = !q && rows.length > c.show
+      ? `<button class="cat-more" data-cat="${c.key}">${open ? 'Weniger anzeigen' : `Alle ${rows.length} anzeigen`}</button>` : '';
+    return `<div class="cat" style="--c:${c.color}">
+      <div class="cat-h"><span>${c.icon}</span><b>${c.title}</b>${total !== null ? `<span class="cat-sum">${nf.format(total)} gesamt</span>` : ''}</div>
+      <div class="cat-list">${shown.length ? shown.map(r => `<div><span>${esc(r.label)}</span><span>${r.val}</span></div>`).join('')
+        : '<div><span class="muted">Noch nichts</span><span></span></div>'}</div>${more}</div>`;
+  }).join('');
+  document.getElementById('cats').innerHTML = html || '<div class="muted">Nichts gefunden.</div>';
+  document.querySelectorAll('.cat-more').forEach(b => b.onclick = ev => {
+    ev.stopPropagation(); MODAL.open[b.dataset.cat] = !MODAL.open[b.dataset.cat]; renderCats(p);
+  });
+}
+
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
 
 document.addEventListener('click', e => {

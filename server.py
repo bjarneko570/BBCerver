@@ -558,12 +558,12 @@ def build_payload():
             "name_known": bool(name),
             "last_saved": last_mod,
             "metrics": metrics,
-            "details": {
-                "mined": top(mined),
-                "killed": top(killed),
-                "killed_by": top(killed_by, 5),
-                "crafted": top(crafted, 5),
-                "movement": sorted(movement.items(), key=lambda x: -x[1]),
+            # Alle Einzel-Stats (ohne "minecraft:"), fuer die Detailansicht
+            "stats": {
+                cat: {strip_ns(k): v for k, v in s.get("minecraft:" + cat, {}).items()
+                      if isinstance(v, (int, float)) and v > 0}
+                for cat in ("custom", "mined", "killed", "killed_by", "crafted", "used",
+                            "picked_up", "dropped", "broken")
             },
         })
     with STATE_LOCK:
